@@ -1,7 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
-import { env } from '../config/env.js';
+import { supabaseEnv } from '../config/env.js';
 
-export const supabase =
-  env.supabase.url && env.supabase.serviceKey
-    ? createClient(env.supabase.url, env.supabase.serviceKey)
-    : null;
+export const supabase = createClient(supabaseEnv.url, supabaseEnv.serviceKey, {
+  auth: { persistSession: false },
+});
