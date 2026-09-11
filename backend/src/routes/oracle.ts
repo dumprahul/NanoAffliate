@@ -1,14 +1,40 @@
 import { Router } from 'express';
+import { z } from 'zod';
+import { createOracleX402Middleware } from '../x402/oracleServer.js';
+import { runOracleScoring } from '../services/scoring.js';
 
-/**
- * Attention Trust Oracle — architecture/README.md §8.
- * POST /verify-attention is x402-gated (paymentMiddleware) before this
- * handler ever runs. Middleware wiring is build order step 3.
- *
- * TODO: add x402 paymentMiddleware, then call scoreSession() + logTickToHCS().
- */
 export const oracleRouter = Router();
 
-oracleRouter.post('/verify-attention', (_req, res) => {
-  res.status(501).json({ error: 'not implemented' });
+const signalsSchema = z.object({
+  session_id: z.string().uuid(),
+  signals: z.object({
+    tabActive: z.boolean(),
+    lastInteractionMsAgo: z.number().nonnegative(),
+    scrollVelocityCurve: z.array(z.number()),
+    deviceFingerprintHash: z.string(),
+  }),
+});
+
+/**
+ * Attention Trust Oracle — architecture §8. x402 middleware runs first and
+ * short-circuits with a 402 unless a valid Hedera payment is attached.
+ *
+ * Mounted with `.use(middleware)` (no path arg) rather than
+ * `.use('/verify-attention', middleware)`: Express strips a `.use(path, …)`
+ * prefix from `req.path` inside that middleware, so the x402 resource
+ * server's internal route matcher would see `/` instead of
+ * `/verify-attention`, fail to match its configured route, and let requests
+ * through completely unprotected. Since this router is itself mounted at
+ * the app root, `req.path` here is already the full `/verify-attention`.
+ */
+oracleRouter.use(createOracleX402Middleware());
+
+oracleRouter.post('/verify-attention', async (req, res, next) => {
+  try {
+    const body = signalsSchema.parse(req.body);
+    const result = await runOracleScoring(body.session_id, body.signals);
+    res.json(result);
+  } catch (err) {
+    next(err);
+  }
 });
