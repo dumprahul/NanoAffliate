@@ -1,0 +1,1 @@
+repo initialization check - we gonna make rocking product
