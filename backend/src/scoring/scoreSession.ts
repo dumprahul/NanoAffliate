@@ -38,7 +38,10 @@ export function scoreSession(
     0.15 * fingerprintConsistency +
     0.25 * sessionDiversity;
 
-  const adjustedScore = rawScore * session.trustPenaltyMultiplier;
+  // trustPenaltyMultiplier is meant to only ever reduce trust (>1 would inflate
+  // a creator's score above what their signals actually earned), so clamp here
+  // rather than trust every caller to pass a sane multiplier.
+  const adjustedScore = clamp01(rawScore * session.trustPenaltyMultiplier);
 
   if (session.borderlineTickCount > 6) {
     return { outcome: 'require_selfie_check', score: adjustedScore };
