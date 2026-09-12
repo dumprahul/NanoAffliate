@@ -59,6 +59,10 @@ export function renderAttentionPage(params: {
   var scrollSamples = [];
   var lastScrollY = window.scrollY;
   var lastScrollAt = Date.now();
+  var mouseSamples = [];
+  var lastMouseX = null;
+  var lastMouseY = null;
+  var lastMouseAt = Date.now();
 
   function markInteraction() { lastInteractionAt = Date.now(); }
   ['mousemove', 'keydown', 'touchstart', 'click'].forEach(function (evt) {
@@ -74,6 +78,23 @@ export function renderAttentionPage(params: {
     lastScrollY = window.scrollY;
     lastScrollAt = now;
     markInteraction();
+  }, { passive: true });
+
+  // Mouse-move jitter — real human movement isn't perfectly smooth;
+  // scripted/synthetic movement often is.
+  window.addEventListener('mousemove', function (e) {
+    var now = Date.now();
+    if (lastMouseX !== null) {
+      var dx = e.clientX - lastMouseX;
+      var dy = e.clientY - lastMouseY;
+      var dist = Math.sqrt(dx * dx + dy * dy);
+      var dt = Math.max(1, now - lastMouseAt);
+      mouseSamples.push(dist / dt);
+      if (mouseSamples.length > 30) mouseSamples.shift();
+    }
+    lastMouseX = e.clientX;
+    lastMouseY = e.clientY;
+    lastMouseAt = now;
   }, { passive: true });
 
   function fingerprint() {
@@ -99,6 +120,9 @@ export function renderAttentionPage(params: {
         lastInteractionMsAgo: Date.now() - lastInteractionAt,
         scrollVelocityCurve: scrollSamples.slice(),
         deviceFingerprintHash: deviceFingerprintHash,
+        webdriverFlag: navigator.webdriver === true,
+        pluginsLength: navigator.plugins ? navigator.plugins.length : 0,
+        mouseMovementCurve: mouseSamples.slice(),
       },
     };
     fetch('/report-signals', {
