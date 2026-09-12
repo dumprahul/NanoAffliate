@@ -12,6 +12,9 @@ const signalsSchema = z.object({
     lastInteractionMsAgo: z.number().nonnegative(),
     scrollVelocityCurve: z.array(z.number()),
     deviceFingerprintHash: z.string(),
+    webdriverFlag: z.boolean().optional(),
+    pluginsLength: z.number().nonnegative().optional(),
+    mouseMovementCurve: z.array(z.number()).optional(),
   }),
 });
 
