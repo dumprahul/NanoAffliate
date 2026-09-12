@@ -24,6 +24,11 @@ export function createOracleX402Middleware() {
         network,
         payTo: env.oracle.accountId,
         price: { asset: HBAR_ASSET_ID, amount: env.oraclePricePerCallTinybar },
+        // architecture §11.5 stretch tier: embed the Oracle's UAID in the 402
+        // challenge itself (not just the 200 response) so the Agent can
+        // resolve it against the identity-registry topic BEFORE paying,
+        // not just after. See x402/agentClient.ts.
+        extra: env.oracle.uaid ? { provider_uaid: env.oracle.uaid } : undefined,
       },
     },
   };
