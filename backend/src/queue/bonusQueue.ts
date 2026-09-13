@@ -5,6 +5,7 @@ import { getConversionById, markConversionPaid, markConversionCancelled } from '
 import { submitHcsMessage } from '../hedera/hcs.js';
 import { getLinkById } from '../db/links.js';
 import { getSessionById } from '../db/sessions.js';
+import { addProductSpend } from '../db/products.js';
 
 const connection = { url: env.redisUrl };
 
@@ -59,6 +60,12 @@ export function startBonusWorker(): Worker<BonusJobData> {
         }
       } else if (status.deleted) {
         await markConversionCancelled(conversion.id);
+        // The webhook route reserved this against the product's escrow
+        // budget when it created the schedule; a fraud-check cancellation
+        // means the transfer never happened, so give that budget back.
+        if (link) {
+          await addProductSpend(link.product_id, -link.rate_purchase_bonus);
+        }
       } else {
         throw new Error(`schedule ${job.data.scheduleId} neither executed nor deleted after polling`);
       }

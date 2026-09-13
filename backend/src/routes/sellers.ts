@@ -3,7 +3,7 @@ import { Router } from 'express';
 import { z } from 'zod';
 import { createEscrowAccount } from '../hedera/payments.js';
 import { createSeller, getSellerById, updateEscrowBalanceCached } from '../db/sellers.js';
-import { createProduct } from '../db/products.js';
+import { createProduct, getProductById } from '../db/products.js';
 import { getHbarBalanceTinybar } from '../hedera/mirrorNode.js';
 
 export const sellersRouter = Router();
@@ -57,6 +57,7 @@ const createProductSchema = z.object({
   image_url: z.string().url().optional(),
   price_display: z.string().optional(),
   affiliate_tag: z.string().min(1),
+  escrow_budget_hbar: z.number().positive().optional(),
 });
 
 /** architecture §6.1 step 2 — manual product entry, no PA-API dependency (out of scope, §20). */
@@ -75,8 +76,25 @@ sellersRouter.post('/sellers/:id/products', async (req, res, next) => {
       imageUrl: body.image_url,
       priceDisplay: body.price_display,
       affiliateTag: body.affiliate_tag,
+      escrowBudgetHbar: body.escrow_budget_hbar,
     });
     res.status(201).json({ product });
+  } catch (err) {
+    next(err);
+  }
+});
+
+/** Read-only budget snapshot for the Products dashboard — remaining vs. spent, if a cap is set. */
+sellersRouter.get('/products/:id', async (req, res, next) => {
+  try {
+    const product = await getProductById(req.params.id);
+    if (!product) {
+      res.status(404).json({ error: 'product not found' });
+      return;
+    }
+    const remaining =
+      product.escrow_budget_hbar === null ? null : Math.max(product.escrow_budget_hbar - product.escrow_spent_hbar, 0);
+    res.json({ product, escrow_remaining_hbar: remaining });
   } catch (err) {
     next(err);
   }

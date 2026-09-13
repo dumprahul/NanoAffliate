@@ -4,6 +4,7 @@ import { getSessionContext } from '../db/sessions.js';
 import { createConversion, markConversionPaid } from '../db/conversions.js';
 import { submitHcsMessage } from '../hedera/hcs.js';
 import { payCreatorFromEscrow } from '../hedera/payments.js';
+import { addProductSpend, isUnderProductBudget } from '../db/products.js';
 
 export const conversionsRouter = Router();
 
@@ -21,7 +22,7 @@ conversionsRouter.post('/conversions/self-report', async (req, res, next) => {
       res.status(404).json({ error: 'session not found' });
       return;
     }
-    const { link, creator, seller } = context;
+    const { link, creator, seller, product } = context;
 
     const conversion = await createConversion({
       sessionId: body.session_id,
@@ -30,12 +31,17 @@ conversionsRouter.post('/conversions/self-report', async (req, res, next) => {
     });
 
     let bonusPayoutTxId: string | undefined;
-    if (seller.escrow_hedera_account_id && link.rate_purchase_bonus > 0) {
+    if (
+      seller.escrow_hedera_account_id &&
+      link.rate_purchase_bonus > 0 &&
+      (await isUnderProductBudget(product.id, link.rate_purchase_bonus))
+    ) {
       bonusPayoutTxId = await payCreatorFromEscrow(
         seller.escrow_hedera_account_id,
         creator.hedera_account_id,
         link.rate_purchase_bonus,
       );
+      await addProductSpend(product.id, link.rate_purchase_bonus);
       await markConversionPaid(conversion.id, bonusPayoutTxId);
     }
 
