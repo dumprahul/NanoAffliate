@@ -9,7 +9,7 @@ import { ClientOnly } from "@/components/ui/ClientOnly";
 import { WalletConnectButton } from "@/components/ui/WalletConnectButton";
 import { useCreatorIdentity } from "@/lib/identity";
 import { walletTransferHbar } from "@/lib/wallet";
-import { ApiError, createCreator, createSeller, getEscrowBalance, listSellers } from "@/lib/api";
+import { ApiError, createSeller, getEscrowBalance, listSellers } from "@/lib/api";
 import { hashscanAccountUrl, hashscanTxUrl, timeAgo } from "@/lib/format";
 import type { Seller } from "@/lib/types";
 
@@ -74,25 +74,7 @@ function SectionCard({
 }
 
 function CreatorIdentitySection() {
-  const { creator, setCreator, clearCreator } = useCreatorIdentity();
-  const [hederaAccountId, setHederaAccountId] = useState("");
-  const [manual, setManual] = useState(false);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  async function createIdentity(accountId: string) {
-    setBusy(true);
-    setError(null);
-    try {
-      const created = await createCreator({ hedera_account_id: accountId });
-      setCreator({ id: created.id, hedera_account_id: created.hedera_account_id });
-      setHederaAccountId("");
-    } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Could not create identity.");
-    } finally {
-      setBusy(false);
-    }
-  }
+  const { creator, clearCreator } = useCreatorIdentity();
 
   return (
     <SectionCard title="Your creator identity">
@@ -104,49 +86,18 @@ function CreatorIdentitySection() {
             <p className="mt-0.5 font-mono text-[11px] text-subtle">creator id: {creator.id}</p>
           </div>
           <SecondaryButton as="button" onClick={clearCreator} className="shrink-0">
-            Forget identity
+            Log out
           </SecondaryButton>
         </div>
       ) : (
-        <div className="flex flex-col gap-4">
+        <div className="flex items-center justify-between gap-4">
           <p className="text-[12.5px] text-subtle">
-            Connecting mints your identity from the wallet you approve — this calls{" "}
-            <span className="font-mono text-ink-2">POST /creators</span> with that real account ID
-            and remembers it in this browser. Attention-tick and purchase-bonus payouts go there.
+            Not logged in — creator identity now requires a real World ID Selfie Check, not a
+            typed-in account ID.
           </p>
-
-          <WalletConnectButton label="Connect wallet to create identity" onConnected={createIdentity} />
-
-          {!manual ? (
-            <button
-              type="button"
-              onClick={() => setManual(true)}
-              className="link-underline w-fit text-[11.5px] font-medium text-ink-2"
-            >
-              Or enter an account ID manually
-            </button>
-          ) : (
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                createIdentity(hederaAccountId.trim());
-              }}
-              className="flex items-center gap-3"
-            >
-              <input
-                required
-                value={hederaAccountId}
-                onChange={(e) => setHederaAccountId(e.target.value)}
-                placeholder="0.0.xxxxxxx"
-                className="w-full max-w-xs border border-line-soft bg-transparent px-3 py-2.5 font-mono text-[13px] text-ink focus:border-line focus:outline-none"
-              />
-              <PrimaryButton as="button" type="submit" disabled={busy}>
-                {busy ? "Creating…" : "Create identity"}
-              </PrimaryButton>
-            </form>
-          )}
-
-          {error && <p className="text-[12px] text-red-600">{error}</p>}
+          <PrimaryButton href="/login" className="shrink-0">
+            Log in
+          </PrimaryButton>
         </div>
       )}
     </SectionCard>

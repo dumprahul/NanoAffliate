@@ -14,13 +14,16 @@ import { sortProducts, type SortKey } from "@/components/dashboard/sort";
 import { ApiError, listProducts } from "@/lib/api";
 import { useCreatorIdentity } from "@/lib/identity";
 import { ClientOnly } from "@/components/ui/ClientOnly";
+import { RequireCreatorLogin } from "@/components/ui/RequireCreatorLogin";
 import { PrimaryButton } from "@/components/ui/Button";
 import type { ProductWithSeller, Seller } from "@/lib/types";
 
 export default function ProductsPage() {
   return (
     <ClientOnly>
-      <ProductsPageContent />
+      <RequireCreatorLogin>
+        <ProductsPageContent />
+      </RequireCreatorLogin>
     </ClientOnly>
   );
 }
@@ -216,9 +219,9 @@ function NoIdentityNotice() {
   return (
     <div className="border-t border-line-soft bg-surface px-6 py-3">
       <p className="text-[11.5px] leading-[1.6] text-subtle">
-        Set up a creator identity before minting links —{" "}
-        <Link href="/settings" className="link-underline text-ink-2">
-          go to Settings
+        Log in before minting links —{" "}
+        <Link href="/login" className="link-underline text-ink-2">
+          log in
         </Link>
         .
       </p>
