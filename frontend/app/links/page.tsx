@@ -6,6 +6,7 @@ import { ArrowUpRight, Check, Copy } from "lucide-react";
 import { Sidebar } from "@/components/dashboard/Sidebar";
 import { Topbar } from "@/components/dashboard/Topbar";
 import { ClientOnly } from "@/components/ui/ClientOnly";
+import { RequireCreatorLogin } from "@/components/ui/RequireCreatorLogin";
 import { useCreatorIdentity } from "@/lib/identity";
 import { ApiError, API_BASE_URL, listLinksByCreator } from "@/lib/api";
 import { formatHbar, hashscanTopicUrl, timeAgo } from "@/lib/format";
@@ -14,7 +15,9 @@ import type { LinkWithProduct } from "@/lib/types";
 export default function LinksPage() {
   return (
     <ClientOnly>
-      <LinksPageContent />
+      <RequireCreatorLogin>
+        <LinksPageContent />
+      </RequireCreatorLogin>
     </ClientOnly>
   );
 }
@@ -44,9 +47,9 @@ function LinksPageContent() {
 
           {!creator ? (
             <div className="flex h-64 flex-col items-center justify-center gap-2 border border-dashed border-line-soft">
-              <p className="text-[13px] text-subtle">Set up a creator identity to see your links.</p>
-              <NextLink href="/settings" className="link-underline text-[12.5px] text-ink-2">
-                Go to Settings
+              <p className="text-[13px] text-subtle">Log in to see your links.</p>
+              <NextLink href="/login" className="link-underline text-[12.5px] text-ink-2">
+                Log in
               </NextLink>
             </div>
           ) : error ? (

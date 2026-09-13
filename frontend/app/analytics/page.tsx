@@ -8,6 +8,7 @@ import { TimeSeriesChart } from "@/components/dashboard/TimeSeriesChart";
 import { RankedBarList, type RankedRow } from "@/components/dashboard/RankedBarList";
 import { EscrowBudgetBar } from "@/components/dashboard/EscrowBudgetBar";
 import { ClientOnly } from "@/components/ui/ClientOnly";
+import { RequireCreatorLogin } from "@/components/ui/RequireCreatorLogin";
 import { ApiError, listPayouts, listProducts } from "@/lib/api";
 import { formatHbar, hashscanTopicUrl } from "@/lib/format";
 import type { PayoutEvent, PayoutKind, ProductWithSeller } from "@/lib/types";
@@ -26,7 +27,9 @@ const KIND_LABEL: Record<PayoutKind, string> = {
 export default function AnalyticsPage() {
   return (
     <ClientOnly>
-      <AnalyticsPageContent />
+      <RequireCreatorLogin>
+        <AnalyticsPageContent />
+      </RequireCreatorLogin>
     </ClientOnly>
   );
 }
