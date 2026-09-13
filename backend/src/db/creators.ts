@@ -24,6 +24,23 @@ export async function getCreatorByWorldNullifier(nullifier: string): Promise<Cre
   return data as Creator | null;
 }
 
+/**
+ * Links a nullifier to a creator that already exists but predates World ID
+ * login (manual entry, or the older wallet-only flow) — its world_nullifier
+ * is null, so a real Selfie Check would otherwise never match it and would
+ * force that browser through "connect a wallet" again on every login.
+ */
+export async function linkWorldNullifier(id: string, nullifier: string): Promise<Creator> {
+  const { data, error } = await supabase
+    .from('creators')
+    .update({ world_nullifier: nullifier })
+    .eq('id', id)
+    .select()
+    .single();
+  if (error) throw error;
+  return data as Creator;
+}
+
 export async function listCreators(): Promise<Creator[]> {
   const { data, error } = await supabase.from('creators').select().order('cold_start_started_at', { ascending: false });
   if (error) throw error;
