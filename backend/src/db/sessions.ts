@@ -37,6 +37,7 @@ export interface SessionContext {
   };
   creator: { id: string; hedera_account_id: string; trust_penalty_multiplier: number };
   seller: { id: string; escrow_hedera_account_id: string | null };
+  product: { id: string; escrow_budget_hbar: number | null; escrow_spent_hbar: number };
 }
 
 export async function getSessionContext(sessionId: string): Promise<SessionContext | null> {
@@ -45,7 +46,7 @@ export async function getSessionContext(sessionId: string): Promise<SessionConte
     .select(
       `*, links!inner ( id, hcs_topic_id, rate_unverified_per_tick, rate_verified_per_tick, rate_purchase_bonus,
         creators!inner ( id, hedera_account_id, trust_penalty_multiplier ),
-        products!inner ( seller_id, sellers!inner ( id, escrow_hedera_account_id ) ) )`,
+        products!inner ( id, seller_id, escrow_budget_hbar, escrow_spent_hbar, sellers!inner ( id, escrow_hedera_account_id ) ) )`,
     )
     .eq('id', sessionId)
     .maybeSingle();
@@ -56,7 +57,8 @@ export async function getSessionContext(sessionId: string): Promise<SessionConte
   const row = data as any;
   const link = row.links;
   const creator = link.creators;
-  const seller = link.products.sellers;
+  const product = link.products;
+  const seller = product.sellers;
 
   const { links: _links, ...session } = row;
   void _links;
@@ -76,6 +78,11 @@ export async function getSessionContext(sessionId: string): Promise<SessionConte
       trust_penalty_multiplier: creator.trust_penalty_multiplier,
     },
     seller: { id: seller.id, escrow_hedera_account_id: seller.escrow_hedera_account_id },
+    product: {
+      id: product.id,
+      escrow_budget_hbar: product.escrow_budget_hbar,
+      escrow_spent_hbar: product.escrow_spent_hbar,
+    },
   };
 }
 
