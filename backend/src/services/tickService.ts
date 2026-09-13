@@ -128,5 +128,11 @@ export async function processTick(sessionId: string, signals: SignalInput): Prom
 
   await updateSessionAfterTick(sessionId, { last_tick_at: new Date().toISOString() });
 
+  console.log(
+    `[tick] session=${sessionId} tick=${tickNumber} oracleDecision=${oracleResponse.outcome} ` +
+      `effectiveDecision=${effectiveDecision} rateTier=${rateTier} paid=${amountPaid} ` +
+      `payoutTx=${payoutTxId ?? '-'} hcsSeq=${hcsSeq ?? '-'}`,
+  );
+
   return oracleResponse;
 }

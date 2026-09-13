@@ -45,5 +45,11 @@ export async function runOracleScoring(sessionId: string, signals: SignalInput):
     borderline_tick_count: borderlineTickCount,
   });
 
+  console.log(
+    `[oracle] session=${sessionId} link=${link.id} decision=${decision.outcome} ` +
+      `score=${decision.score.toFixed(3)} diversity=${diversityScore.toFixed(2)} ` +
+      `cumulativeTrust=${cumulativeTrustScore.toFixed(3)} borderlineTicks=${borderlineTickCount}`,
+  );
+
   return { outcome: decision.outcome, score: decision.score, provider_uaid: env.oracle.uaid };
 }
