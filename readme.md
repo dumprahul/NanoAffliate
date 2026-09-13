@@ -155,6 +155,18 @@ npm run dev
 
 ---
 
+## Deployment
+
+The live instance runs on **Railway** (backend + Redis) and **Vercel** (frontend) — not a hypothetical setup, this is what's actually serving `nanoaffliate-production.up.railway.app` right now.
+
+- **Backend** — a Railway service built from `backend/` via Nixpacks, running `npm run build && npm start`. All the real env vars (Hedera, Supabase, Redis, World ID) are set in Railway's dashboard, not committed anywhere.
+- **Redis** — a separate Railway Redis service, wired to the backend with `REDIS_URL=redis://default:<password>@redis.railway.internal:6379`. That `.railway.internal` hostname is Railway's **private network** — it only resolves *inside* Railway, which means local dev can never reach the production Redis directly (BullMQ's tick queue and the diversity-score aggregate both depend on it). Point `REDIS_URL` at a local or separately-hosted Redis for local development instead.
+- **Node version** — pinned to `>=22` (`package.json` `engines`, plus a `.node-version` file). `@supabase/supabase-js` v2 constructs a `RealtimeClient` that requires native `WebSocket` unconditionally, even though this app never uses Realtime — on Node 20 that's an immediate crash at `createClient()`. Nixpacks reads the pin and picks Node 22+ automatically.
+- **Frontend** — deployed on Vercel from `frontend/`, with `NEXT_PUBLIC_API_BASE_URL` pointed at the Railway backend's public URL. Since `NEXT_PUBLIC_*` vars are baked in at build time, changing that value requires a fresh deploy to take effect, not just a saved env var.
+- **Redeploys aren't automatic across the two services** — pushing backend changes doesn't touch the frontend's build and vice versa; a change to one only ships once that service's own deploy runs.
+
+---
+
 ## API surface
 
 | Route | What it does |
