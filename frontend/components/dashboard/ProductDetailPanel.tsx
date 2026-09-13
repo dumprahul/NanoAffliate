@@ -3,6 +3,7 @@ import { hostnameFromUrl, timeAgo } from "@/lib/format";
 import type { ProductWithSeller } from "@/lib/types";
 import { ProductThumb } from "./ProductThumb";
 import { PrimaryButton, SecondaryButton } from "../ui/Button";
+import { EscrowBudgetBar } from "./EscrowBudgetBar";
 
 export function ProductDetailPanel({
   product,
@@ -32,6 +33,13 @@ export function ProductDetailPanel({
           {hostnameFromUrl(product.source_url)}
           <ArrowUpRight size={12} strokeWidth={1.75} />
         </a>
+
+        <div className="mt-5">
+          <EscrowBudgetBar
+            budgetHbar={product.escrow_budget_hbar}
+            spentHbar={product.escrow_spent_hbar}
+          />
+        </div>
 
         <div className="mt-6 flex flex-col gap-2.5">
           <PrimaryButton
@@ -67,6 +75,14 @@ export function ProductDetailPanel({
                 product.seller.escrow_balance_cached !== null
                   ? `${product.seller.escrow_balance_cached} ℏ`
                   : "not funded"
+              }
+            />
+            <Row
+              label="escrow_budget"
+              value={
+                product.escrow_budget_hbar !== null
+                  ? `${product.escrow_spent_hbar} / ${product.escrow_budget_hbar} ℏ`
+                  : "unlimited"
               }
             />
             <Row label="created_at" value={timeAgo(product.created_at)} />
