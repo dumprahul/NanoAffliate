@@ -1,15 +1,16 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { ArrowUpRight, RefreshCw } from "lucide-react";
+import { ArrowUpRight, RefreshCw, Send } from "lucide-react";
 import { Sidebar } from "@/components/dashboard/Sidebar";
 import { Topbar } from "@/components/dashboard/Topbar";
 import { PrimaryButton, SecondaryButton } from "@/components/ui/Button";
 import { ClientOnly } from "@/components/ui/ClientOnly";
+import { WalletConnectButton } from "@/components/ui/WalletConnectButton";
 import { useCreatorIdentity } from "@/lib/identity";
-import { ApiError, createSeller, getEscrowBalance, listSellers } from "@/lib/api";
-import { createCreator } from "@/lib/api";
-import { hashscanAccountUrl, timeAgo } from "@/lib/format";
+import { walletTransferHbar } from "@/lib/wallet";
+import { ApiError, createCreator, createSeller, getEscrowBalance, listSellers } from "@/lib/api";
+import { hashscanAccountUrl, hashscanTxUrl, timeAgo } from "@/lib/format";
 import type { Seller } from "@/lib/types";
 
 export default function SettingsPage() {
@@ -33,7 +34,16 @@ function SettingsPageContent() {
               <h1 className="display mt-2 text-[26px]">Identity &amp; sellers</h1>
               <p className="mt-2 text-[13px] text-subtle">
                 There&apos;s no login here — every id below is a real row in the backend, and this
-                browser just remembers which ones are yours.
+                browser just remembers which ones are yours. Connect a Hedera wallet (HashPack, via{" "}
+                <a
+                  href="https://github.com/hashgraph/hedera-wallet-connect"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="link-underline"
+                >
+                  WalletConnect
+                </a>
+                ) instead of typing account IDs by hand.
               </p>
             </div>
 
@@ -66,15 +76,15 @@ function SectionCard({
 function CreatorIdentitySection() {
   const { creator, setCreator, clearCreator } = useCreatorIdentity();
   const [hederaAccountId, setHederaAccountId] = useState("");
+  const [manual, setManual] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  async function handleCreate(e: React.FormEvent) {
-    e.preventDefault();
+  async function createIdentity(accountId: string) {
     setBusy(true);
     setError(null);
     try {
-      const created = await createCreator({ hedera_account_id: hederaAccountId.trim() });
+      const created = await createCreator({ hedera_account_id: accountId });
       setCreator({ id: created.id, hedera_account_id: created.hedera_account_id });
       setHederaAccountId("");
     } catch (err) {
@@ -98,26 +108,46 @@ function CreatorIdentitySection() {
           </SecondaryButton>
         </div>
       ) : (
-        <form onSubmit={handleCreate} className="flex flex-col gap-3">
+        <div className="flex flex-col gap-4">
           <p className="text-[12.5px] text-subtle">
-            Enter the Hedera testnet account ID that should receive your attention-tick and
-            purchase-bonus payouts. This calls <span className="font-mono text-ink-2">POST /creators</span>{" "}
-            once and remembers the returned id in this browser.
+            Connecting mints your identity from the wallet you approve — this calls{" "}
+            <span className="font-mono text-ink-2">POST /creators</span> with that real account ID
+            and remembers it in this browser. Attention-tick and purchase-bonus payouts go there.
           </p>
-          <div className="flex items-center gap-3">
-            <input
-              required
-              value={hederaAccountId}
-              onChange={(e) => setHederaAccountId(e.target.value)}
-              placeholder="0.0.xxxxxxx"
-              className="w-full max-w-xs border border-line-soft bg-transparent px-3 py-2.5 font-mono text-[13px] text-ink focus:border-line focus:outline-none"
-            />
-            <PrimaryButton as="button" type="submit" disabled={busy}>
-              {busy ? "Creating…" : "Create identity"}
-            </PrimaryButton>
-          </div>
+
+          <WalletConnectButton label="Connect wallet to create identity" onConnected={createIdentity} />
+
+          {!manual ? (
+            <button
+              type="button"
+              onClick={() => setManual(true)}
+              className="link-underline w-fit text-[11.5px] font-medium text-ink-2"
+            >
+              Or enter an account ID manually
+            </button>
+          ) : (
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                createIdentity(hederaAccountId.trim());
+              }}
+              className="flex items-center gap-3"
+            >
+              <input
+                required
+                value={hederaAccountId}
+                onChange={(e) => setHederaAccountId(e.target.value)}
+                placeholder="0.0.xxxxxxx"
+                className="w-full max-w-xs border border-line-soft bg-transparent px-3 py-2.5 font-mono text-[13px] text-ink focus:border-line focus:outline-none"
+              />
+              <PrimaryButton as="button" type="submit" disabled={busy}>
+                {busy ? "Creating…" : "Create identity"}
+              </PrimaryButton>
+            </form>
+          )}
+
           {error && <p className="text-[12px] text-red-600">{error}</p>}
-        </form>
+        </div>
       )}
     </SectionCard>
   );
@@ -157,7 +187,7 @@ function SellersSection() {
       {justCreated && (
         <div className="mb-5 border border-ink bg-surface px-4 py-3">
           <p className="text-[12.5px] font-medium text-ink">
-            Seller onboarded — fund its escrow account before creating links against it.
+            Seller onboarded — fund its escrow account below before creating links against it.
           </p>
           <dl className="mt-2 space-y-1.5 font-mono text-[11.5px]">
             <div className="flex justify-between gap-3">
@@ -170,8 +200,8 @@ function SellersSection() {
             </div>
           </dl>
           <p className="mt-2 text-[11px] leading-[1.6] text-subtle">
-            Shown once. Send testnet HBAR from your own wallet to fund_this_account, and store
-            webhook_secret if you&apos;ll sign /webhooks/purchase-confirmed requests for this seller.
+            Shown once — store webhook_secret if you&apos;ll sign /webhooks/purchase-confirmed
+            requests for this seller.
           </p>
         </div>
       )}
@@ -209,6 +239,7 @@ function SellersSection() {
 function SellerRow({ seller }: { seller: Seller }) {
   const [balance, setBalance] = useState<number | null>(seller.escrow_balance_cached);
   const [checking, setChecking] = useState(false);
+  const [funding, setFunding] = useState(false);
 
   async function checkBalance() {
     if (!seller.escrow_hedera_account_id) return;
@@ -224,40 +255,132 @@ function SellerRow({ seller }: { seller: Seller }) {
   }
 
   return (
-    <div className="flex items-center justify-between gap-4 py-3">
-      <div className="min-w-0">
-        <a
-          href={hashscanAccountUrl(seller.hedera_account_id)}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="link-underline inline-flex items-center gap-1.5 font-mono text-[12.5px] text-ink"
-        >
-          {seller.hedera_account_id}
-          <ArrowUpRight size={11} strokeWidth={1.75} />
-        </a>
-        <p className="mt-0.5 text-[11px] text-subtle">
-          escrow{" "}
-          <span className="font-mono text-ink-2">
-            {seller.escrow_hedera_account_id ?? "none"}
-          </span>{" "}
-          · onboarded {timeAgo(seller.created_at)}
-        </p>
-      </div>
-      <div className="flex shrink-0 items-center gap-3">
-        <span className="tnum text-[12.5px] text-ink-2">
-          {balance !== null ? `${balance.toFixed(4)} ℏ` : "unfunded"}
-        </span>
-        {seller.escrow_hedera_account_id && (
-          <button
-            type="button"
-            onClick={checkBalance}
-            aria-label="Refresh balance"
-            className="text-ink-2 transition-colors hover:text-ink"
+    <div className="py-3">
+      <div className="flex items-center justify-between gap-4">
+        <div className="min-w-0">
+          <a
+            href={hashscanAccountUrl(seller.hedera_account_id)}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="link-underline inline-flex items-center gap-1.5 font-mono text-[12.5px] text-ink"
           >
-            <RefreshCw size={13} strokeWidth={1.75} className={checking ? "animate-spin" : ""} />
-          </button>
-        )}
+            {seller.hedera_account_id}
+            <ArrowUpRight size={11} strokeWidth={1.75} />
+          </a>
+          <p className="mt-0.5 text-[11px] text-subtle">
+            escrow{" "}
+            <span className="font-mono text-ink-2">
+              {seller.escrow_hedera_account_id ?? "none"}
+            </span>{" "}
+            · onboarded {timeAgo(seller.created_at)}
+          </p>
+        </div>
+        <div className="flex shrink-0 items-center gap-3">
+          <span className="tnum text-[12.5px] text-ink-2">
+            {balance !== null ? `${balance.toFixed(4)} ℏ` : "unfunded"}
+          </span>
+          {seller.escrow_hedera_account_id && (
+            <>
+              <button
+                type="button"
+                onClick={checkBalance}
+                aria-label="Refresh balance"
+                className="text-ink-2 transition-colors hover:text-ink"
+              >
+                <RefreshCw size={13} strokeWidth={1.75} className={checking ? "animate-spin" : ""} />
+              </button>
+              <button
+                type="button"
+                onClick={() => setFunding((f) => !f)}
+                className="link-underline text-[11.5px] font-medium text-ink-2"
+              >
+                {funding ? "Cancel" : "Fund"}
+              </button>
+            </>
+          )}
+        </div>
       </div>
+
+      {funding && seller.escrow_hedera_account_id && (
+        <FundEscrowForm
+          escrowAccountId={seller.escrow_hedera_account_id}
+          onFunded={() => {
+            setFunding(false);
+            checkBalance();
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+function FundEscrowForm({
+  escrowAccountId,
+  onFunded,
+}: {
+  escrowAccountId: string;
+  onFunded: () => void;
+}) {
+  const [amount, setAmount] = useState("1");
+  const [walletAccountId, setWalletAccountId] = useState<string | null>(null);
+  const [sending, setSending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [txId, setTxId] = useState<string | null>(null);
+
+  async function send() {
+    if (!walletAccountId) return;
+    setSending(true);
+    setError(null);
+    try {
+      const id = await walletTransferHbar(walletAccountId, escrowAccountId, Number(amount));
+      setTxId(id);
+      onFunded();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Transfer failed or was rejected in your wallet.");
+    } finally {
+      setSending(false);
+    }
+  }
+
+  return (
+    <div className="mt-3 border border-line-soft bg-surface p-4">
+      <p className="mb-3 text-[11.5px] leading-[1.6] text-subtle">
+        Connect the wallet you want to fund from, then sign a real HBAR transfer straight to{" "}
+        <span className="font-mono text-ink-2">{escrowAccountId}</span> — signed by your wallet,
+        not the backend.
+      </p>
+
+      <WalletConnectButton label="Connect wallet to fund" onConnected={setWalletAccountId} />
+
+      {walletAccountId && (
+        <div className="mt-3 flex items-center gap-3">
+          <div className="flex items-center border border-line-soft focus-within:border-line">
+            <input
+              type="number"
+              step="0.0001"
+              min="0"
+              value={amount}
+              onChange={(e) => setAmount(e.target.value)}
+              className="w-24 bg-transparent px-3 py-2 font-mono text-[13px] text-ink focus:outline-none"
+            />
+            <span className="px-3 font-mono text-[12px] text-subtle">ℏ</span>
+          </div>
+          <PrimaryButton as="button" onClick={send} disabled={sending}>
+            <Send size={13} strokeWidth={1.75} />
+            {sending ? "Confirm in wallet…" : "Send"}
+          </PrimaryButton>
+        </div>
+      )}
+
+      {error && <p className="mt-2 text-[12px] text-red-600">{error}</p>}
+      {txId && (
+        <p className="mt-2 text-[12px] text-ink-2">
+          Sent —{" "}
+          <a href={hashscanTxUrl(txId)} target="_blank" rel="noopener noreferrer" className="link-underline">
+            view on HashScan
+          </a>
+        </p>
+      )}
     </div>
   );
 }
@@ -270,11 +393,13 @@ function OnboardSellerForm({
   onCreated: (result: { seller: Seller; fund_this_account: string; webhook_secret: string }) => void;
 }) {
   const [hederaAccountId, setHederaAccountId] = useState("");
+  const [manual, setManual] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (!hederaAccountId.trim()) return;
     setBusy(true);
     setError(null);
     try {
@@ -287,27 +412,42 @@ function OnboardSellerForm({
   }
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-3">
+    <div className="flex flex-col gap-3">
       <p className="text-[12.5px] text-subtle">
         This calls <span className="font-mono text-ink-2">POST /sellers</span>, which also mints a
         real Hedera testnet escrow account for this seller.
       </p>
-      <div className="flex items-center gap-3">
-        <input
-          required
-          value={hederaAccountId}
-          onChange={(e) => setHederaAccountId(e.target.value)}
-          placeholder="Seller's Hedera account ID (0.0.xxxxxxx)"
-          className="w-full max-w-xs border border-line-soft bg-transparent px-3 py-2.5 font-mono text-[13px] text-ink focus:border-line focus:outline-none"
-        />
-        <PrimaryButton as="button" type="submit" disabled={busy}>
+
+      <WalletConnectButton label="Connect wallet" onConnected={setHederaAccountId} />
+
+      {!manual && !hederaAccountId ? (
+        <button
+          type="button"
+          onClick={() => setManual(true)}
+          className="link-underline w-fit text-[11.5px] font-medium text-ink-2"
+        >
+          Or enter an account ID manually
+        </button>
+      ) : null}
+
+      <form onSubmit={handleSubmit} className="flex items-center gap-3">
+        {(manual || hederaAccountId) && (
+          <input
+            required
+            value={hederaAccountId}
+            onChange={(e) => setHederaAccountId(e.target.value)}
+            placeholder="Seller's Hedera account ID (0.0.xxxxxxx)"
+            className="w-full max-w-xs border border-line-soft bg-transparent px-3 py-2.5 font-mono text-[13px] text-ink focus:border-line focus:outline-none"
+          />
+        )}
+        <PrimaryButton as="button" type="submit" disabled={busy || !hederaAccountId}>
           {busy ? "Onboarding…" : "Onboard"}
         </PrimaryButton>
         <SecondaryButton as="button" onClick={onCancel}>
           Cancel
         </SecondaryButton>
-      </div>
+      </form>
       {error && <p className="text-[12px] text-red-600">{error}</p>}
-    </form>
+    </div>
   );
 }
