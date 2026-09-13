@@ -93,7 +93,7 @@ export function listCreators() {
   return request<{ creators: Creator[] }>("/creators").then((r) => r.creators);
 }
 
-export function createCreator(input: { hedera_account_id: string }) {
+export function createCreator(input: { hedera_account_id: string; world_nullifier?: string }) {
   return request<{ creator: Creator }>("/creators", {
     method: "POST",
     body: JSON.stringify(input),
@@ -125,6 +125,29 @@ export function createLink(input: {
 
 export function listPayouts() {
   return request<{ payouts: PayoutEvent[] }>("/payouts").then((r) => r.payouts);
+}
+
+// ---- World ID login (frontend/app/login) ----
+
+export interface WorldRpSignature {
+  app_id: string;
+  rp_id: string;
+  action: string;
+  signature: string;
+  nonce: string;
+  created_at: number;
+  expires_at: number;
+}
+
+export function worldLoginSignature() {
+  return request<WorldRpSignature>("/world/login-signature", { method: "POST" });
+}
+
+export function worldLoginVerify(idkitResponse: unknown) {
+  return request<{ verified: boolean; nullifier: string; creator: Creator | null }>(
+    "/world/login-verify",
+    { method: "POST", body: JSON.stringify({ idkitResponse }) },
+  );
 }
 
 // ---- Conversions (manual/demo trigger from the Links page) ----
