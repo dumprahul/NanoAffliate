@@ -6,6 +6,8 @@ import { ArrowUpRight, Check, Copy, Link2, X } from "lucide-react";
 import type { ProductWithSeller } from "@/lib/types";
 import { PrimaryButton, SecondaryButton } from "../ui/Button";
 import { VideoLoop } from "../ui/VideoLoop";
+import { ApiError, createLink } from "@/lib/api";
+import { hashscanTopicUrl } from "@/lib/format";
 
 const EASE = [0.16, 1, 0.3, 1] as const;
 
@@ -28,46 +30,86 @@ const MINT_STAGES = [
   "Assigning topic ID…",
 ];
 
-type Status = "idle" | "submitting" | "done";
+type Status = "idle" | "submitting" | "done" | "error";
+
+interface LinkResult {
+  topicId: string;
+  shareableUrl: string;
+  explorerUrl: string;
+}
 
 /**
  * Mirrors the real POST /links request body 1:1 (architecture §6.2 /
- * routes/links.ts on the backend). Submission is a local stub — no fetch
- * call yet — since the API isn't wired up. Wiring this up later is just
- * replacing handleSubmit's setTimeout chain with the real request.
+ * routes/links.ts on the backend). The staged checklist animation always
+ * plays through in full, but the transition to "done" waits for the real
+ * request to resolve — minting a real HCS topic usually takes longer than
+ * the animation itself, so this naturally extends to match actual latency
+ * instead of lying about when the link is ready.
  */
 export function CreateLinkDrawer({
   product,
+  creatorId,
   onClose,
 }: {
   product: ProductWithSeller;
+  creatorId: string;
   onClose: () => void;
 }) {
   const [rates, setRates] = useState<Rates>(DEFAULT_RATES);
   const [status, setStatus] = useState<Status>("idle");
   const [stage, setStage] = useState(0);
   const [visible, setVisible] = useState(true);
+  const [result, setResult] = useState<LinkResult | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [animationDone, setAnimationDone] = useState(false);
 
   const update = (field: keyof Rates) => (e: React.ChangeEvent<HTMLInputElement>) =>
     setRates((r) => ({ ...r, [field]: e.target.value }));
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setStatus("submitting");
     setStage(0);
+    setAnimationDone(false);
+    setResult(null);
+    setError(null);
+
+    try {
+      const response = await createLink({
+        creator_id: creatorId,
+        product_id: product.id,
+        rate_unverified_per_tick: Number(rates.rate_unverified_per_tick),
+        rate_verified_per_tick: Number(rates.rate_verified_per_tick),
+        rate_purchase_bonus: Number(rates.rate_purchase_bonus),
+      });
+      setResult({
+        topicId: response.link.hcs_topic_id,
+        shareableUrl: response.shareable_url,
+        explorerUrl: response.explorer_url,
+      });
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Could not create this link.");
+    }
   }
 
-  // Stub — backend isn't wired up yet. Real call:
-  // POST /links { creator_id, product_id: product.id, ...rates }
+  // Advances the checklist visually, independent of when the real request resolves.
   useEffect(() => {
-    if (status !== "submitting") return;
+    if (status !== "submitting" || animationDone) return;
     if (stage >= MINT_STAGES.length) {
-      const t = setTimeout(() => setStatus("done"), 350);
+      const t = setTimeout(() => setAnimationDone(true), 350);
       return () => clearTimeout(t);
     }
     const t = setTimeout(() => setStage((s) => s + 1), 550);
     return () => clearTimeout(t);
-  }, [status, stage]);
+  }, [status, stage, animationDone]);
+
+  // Only leaves "submitting" once the checklist has finished playing AND the
+  // real request has resolved (whichever takes longer).
+  useEffect(() => {
+    if (status !== "submitting" || !animationDone) return;
+    if (result) setStatus("done");
+    else if (error) setStatus("error");
+  }, [status, animationDone, result, error]);
 
   // AnimatePresence's onExitComplete (below) calls the real onClose once the
   // exit animation finishes — this just starts that animation.
@@ -109,9 +151,16 @@ export function CreateLinkDrawer({
 
             <div className="flex-1 overflow-y-auto p-6">
               <AnimatePresence mode="wait">
-                {status === "done" ? (
+                {status === "done" && result ? (
                   <PhaseWrap key="done">
-                    <SuccessState product={product} onClose={handleClose} />
+                    <SuccessState product={product} result={result} onClose={handleClose} />
+                  </PhaseWrap>
+                ) : status === "error" ? (
+                  <PhaseWrap key="error">
+                    <ErrorState
+                      message={error ?? "Something went wrong."}
+                      onRetry={() => setStatus("idle")}
+                    />
                   </PhaseWrap>
                 ) : status === "submitting" ? (
                   <PhaseWrap key="submitting">
@@ -273,20 +322,18 @@ function MintingState({ stage }: { stage: number }) {
 
 function SuccessState({
   product,
+  result,
   onClose,
 }: {
   product: ProductWithSeller;
+  result: LinkResult;
   onClose: () => void;
 }) {
-  const [previewTopic] = useState(
-    () => `0.0.${Math.floor(1_000_0000 + Math.random() * 9_000_0000)}`,
-  );
   const [copied, setCopied] = useState(false);
-  const shareUrl = `nanoaffiliate.io/t/${previewTopic}`;
 
   async function copyLink() {
     try {
-      await navigator.clipboard.writeText(shareUrl);
+      await navigator.clipboard.writeText(result.shareableUrl);
       setCopied(true);
       setTimeout(() => setCopied(false), 1500);
     } catch {
@@ -334,7 +381,7 @@ function SuccessState({
           <p className="label">Shareable link (preview)</p>
         </div>
         <div className="flex items-center justify-between gap-3 px-4 py-3">
-          <p className="truncate font-mono text-[12.5px] text-ink">{shareUrl}</p>
+          <p className="truncate font-mono text-[12.5px] text-ink">{result.shareableUrl}</p>
           <button
             type="button"
             onClick={copyLink}
@@ -360,12 +407,12 @@ function SuccessState({
         initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.35, delay: 0.28, ease: EASE }}
-        href={`https://hashscan.io/testnet/topic/${previewTopic}`}
+        href={result.explorerUrl || hashscanTopicUrl(result.topicId)}
         target="_blank"
         rel="noopener noreferrer"
         className="link-underline inline-flex w-fit items-center gap-1.5 text-[12.5px] text-muted"
       >
-        View on HashScan (once minted)
+        View on HashScan
         <ArrowUpRight size={12} strokeWidth={1.75} />
       </motion.a>
 
@@ -376,13 +423,31 @@ function SuccessState({
         className="border border-line-soft bg-surface px-4 py-3"
       >
         <p className="text-[11.5px] leading-[1.6] text-subtle">
-          Preview only — not connected to the API yet. The capture above shows a
-          real topic being minted on testnet.
+          Live on Hedera testnet — topic <span className="font-mono text-ink-2">{result.topicId}</span>{" "}
+          now holds the <span className="font-mono text-ink-2">link_created</span> manifest. The
+          capture above is a recording of a real mint from an earlier run.
         </p>
       </motion.div>
 
       <SecondaryButton as="button" onClick={onClose} className="w-full justify-center">
         Done
+      </SecondaryButton>
+    </div>
+  );
+}
+
+function ErrorState({ message, onRetry }: { message: string; onRetry: () => void }) {
+  return (
+    <div className="flex flex-col items-center gap-4 py-10 text-center">
+      <div className="flex h-14 w-14 items-center justify-center rounded-full border border-red-200 bg-red-50">
+        <X size={20} strokeWidth={1.5} className="text-red-600" />
+      </div>
+      <div>
+        <p className="text-[13.5px] text-ink">Could not create this link</p>
+        <p className="mt-1.5 max-w-xs text-[12px] leading-[1.6] text-subtle">{message}</p>
+      </div>
+      <SecondaryButton as="button" onClick={onRetry}>
+        Try again
       </SecondaryButton>
     </div>
   );

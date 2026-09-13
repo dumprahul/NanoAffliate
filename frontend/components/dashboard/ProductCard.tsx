@@ -1,6 +1,7 @@
 import { timeAgo } from "@/lib/format";
 import type { ProductWithSeller } from "@/lib/types";
 import { ProductThumb } from "./ProductThumb";
+import { EscrowBudgetBar } from "./EscrowBudgetBar";
 
 export function ProductCard({
   product,
@@ -33,6 +34,16 @@ export function ProductCard({
           </span>
           <span className="text-[10.5px] text-subtle">{timeAgo(product.created_at)}</span>
         </div>
+
+        {product.escrow_budget_hbar !== null && (
+          <div className="mt-2.5">
+            <EscrowBudgetBar
+              budgetHbar={product.escrow_budget_hbar}
+              spentHbar={product.escrow_spent_hbar}
+              compact
+            />
+          </div>
+        )}
       </div>
     </button>
   );
