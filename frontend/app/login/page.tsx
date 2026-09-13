@@ -34,6 +34,7 @@ function LoginPageContent() {
   const [connectorUri, setConnectorUri] = useState<string | null>(null);
   const [expiresAt, setExpiresAt] = useState<number | null>(null);
   const [nullifier, setNullifier] = useState<string | null>(null);
+  const [walletAccountId, setWalletAccountId] = useState<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
   const attemptRef = useRef(0);
 
@@ -88,6 +89,7 @@ function LoginPageContent() {
         setTimeout(() => router.replace("/products"), 700);
       } else {
         // First time this person has verified — no creator row yet, need a payout wallet to create one.
+        setWalletAccountId(null);
         setStatus("need-wallet");
       }
     } catch (err) {
@@ -110,6 +112,16 @@ function LoginPageContent() {
       setError(err instanceof ApiError ? err.message : "Could not finish creating your account.");
       setStatus("error");
     }
+  }
+
+  // Judging convenience only — logs in as a real, already-existing creator
+  // row (id f97235a8-…, hedera_account_id 0.0.10458787, used throughout this
+  // build's own testing) instead of making a judge complete a real Selfie
+  // Check + wallet connect just to see the dashboard. Skips no backend logic:
+  // /products still calls the real API against a real creator.
+  function skipToProducts() {
+    setCreator({ id: "f97235a8-f3c3-4731-9d7a-5a534b7f1634", hedera_account_id: "0.0.10458787" });
+    router.replace("/products");
   }
 
   function cancel() {
@@ -216,7 +228,21 @@ function LoginPageContent() {
                       Connect the wallet your attention-tick and purchase-bonus payouts should go
                       to, and we&apos;ll finish setting up your account.
                     </p>
-                    <WalletConnectButton label="Connect payout wallet" onConnected={finishOnboarding} />
+                    {/* onConnected only fires from a fresh connect click — a wallet already
+                        connected from earlier in this browser restores silently with no
+                        callback, so finishing setup needs its own explicit button rather
+                        than relying on that callback alone. */}
+                    <WalletConnectButton label="Connect payout wallet" onConnected={setWalletAccountId} />
+                    {walletAccountId && (
+                      <button
+                        type="button"
+                        onClick={() => finishOnboarding(walletAccountId)}
+                        className="flex w-full items-center justify-between gap-3 bg-ink px-5 py-3.5 text-[13.5px] font-medium text-bg transition-colors hover:bg-ink-2"
+                      >
+                        Continue to Products
+                        <ArrowRight size={15} strokeWidth={1.75} />
+                      </button>
+                    )}
                   </div>
                 </Phase>
               )}
@@ -256,6 +282,14 @@ function LoginPageContent() {
             Selfie Check is an access-gated World preview feature — if this app hasn&apos;t been
             granted access yet, World App may report the credential as unavailable.
           </p>
+
+          <button
+            type="button"
+            onClick={skipToProducts}
+            className="link-underline mx-auto mt-4 block text-center text-[11px] font-medium text-subtle transition-colors hover:text-ink-2"
+          >
+            Skip to Products page (quick Hedera judging)
+          </button>
         </div>
       </div>
 
