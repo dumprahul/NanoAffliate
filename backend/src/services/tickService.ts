@@ -4,6 +4,7 @@ import { getSessionContext, updateSessionAfterTick } from '../db/sessions.js';
 import { createTick, getNextTickNumber } from '../db/ticks.js';
 import { queuePendingPayout } from '../db/pendingPayouts.js';
 import { addPaidSeconds, isUnderDailyCap } from '../db/paidAttention.js';
+import { addProductSpend, isUnderProductBudget } from '../db/products.js';
 import { submitHcsMessage } from '../hedera/hcs.js';
 import { getHbarBalanceTinybar } from '../hedera/mirrorNode.js';
 import { payCreatorFromEscrow } from '../hedera/payments.js';
@@ -29,7 +30,7 @@ export async function processTick(sessionId: string, signals: SignalInput): Prom
   if (!context) {
     throw new Error(`No session found for id ${sessionId}`);
   }
-  const { session, link, creator, seller } = context;
+  const { session, link, creator, seller, product } = context;
 
   const oracleUrl = `${env.baseUrl}/verify-attention`;
   const callResult = await callX402JsonEndpoint(oracleUrl, { session_id: sessionId, signals });
@@ -61,6 +62,11 @@ export async function processTick(sessionId: string, signals: SignalInput): Prom
       // §7/§20: `payout_queued` is an out-of-scope HCS message type for this build —
       // the pending_payouts row is the audit trail here, retried by the scheduler.
       await queuePendingPayout({ sessionId, reason: 'seller_has_no_escrow_account', amount: rate });
+    } else if (!(await isUnderProductBudget(product.id, rate))) {
+      // Seller-set per-product cap, independent of the escrow account's live
+      // on-chain balance checked below — lets a seller bound spend on one
+      // product without draining the whole escrow account.
+      await queuePendingPayout({ sessionId, reason: 'product_escrow_budget_exhausted', amount: rate });
     } else {
       const escrowTinybar = await getHbarBalanceTinybar(seller.escrow_hedera_account_id);
       const requiredTinybar = BigInt(Math.round(rate * 1e8));
@@ -68,6 +74,7 @@ export async function processTick(sessionId: string, signals: SignalInput): Prom
       if (escrowTinybar >= requiredTinybar) {
         payoutTxId = await payCreatorFromEscrow(seller.escrow_hedera_account_id, creator.hedera_account_id, rate);
         amountPaid = rate;
+        await addProductSpend(product.id, rate);
         await addPaidSeconds(link.id, identityKey, TICK_INTERVAL_SECONDS);
         const result = await submitHcsMessage(link.hcs_topic_id, {
           type: 'tick',

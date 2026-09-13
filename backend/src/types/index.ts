@@ -23,6 +23,8 @@ export interface Product {
   image_url: string | null;
   price_display: string | null;
   affiliate_tag: string;
+  escrow_budget_hbar: number | null;
+  escrow_spent_hbar: number;
   created_at: string;
 }
 

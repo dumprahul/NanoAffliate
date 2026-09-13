@@ -6,6 +6,7 @@ import { getSellerById } from '../db/sellers.js';
 import { createConversion, markConversionScheduled } from '../db/conversions.js';
 import { createScheduledBonusTransfer } from '../hedera/payments.js';
 import { scheduleBonusRelease } from '../queue/bonusQueue.js';
+import { addProductSpend, isUnderProductBudget } from '../db/products.js';
 
 export const webhooksRouter = Router();
 
@@ -50,9 +51,13 @@ webhooksRouter.post('/webhooks/purchase-confirmed', async (req, res, next) => {
       res.status(404).json({ error: 'session not found' });
       return;
     }
-    const { link, creator } = context;
+    const { link, creator, product } = context;
     if (!seller.escrow_hedera_account_id || link.rate_purchase_bonus <= 0) {
       res.status(422).json({ error: 'no escrow account or zero purchase bonus configured' });
+      return;
+    }
+    if (!(await isUnderProductBudget(product.id, link.rate_purchase_bonus))) {
+      res.status(422).json({ error: 'product escrow budget exhausted' });
       return;
     }
 
@@ -68,6 +73,11 @@ webhooksRouter.post('/webhooks/purchase-confirmed', async (req, res, next) => {
       link.rate_purchase_bonus,
       BONUS_DELAY_MS,
     );
+    // Reserved at schedule-creation, not at actual on-chain execution — the
+    // schedule is expected to fire (waitForExpiry), and this keeps the
+    // budget check-then-reserve on the same request/response cycle as the
+    // other two payout paths instead of needing a callback from the bonus queue.
+    await addProductSpend(product.id, link.rate_purchase_bonus);
     await markConversionScheduled(conversion.id, scheduleId);
     await scheduleBonusRelease({ conversionId: conversion.id, scheduleId }, BONUS_DELAY_MS);
 
