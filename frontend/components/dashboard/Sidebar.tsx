@@ -13,13 +13,13 @@ import {
 } from "lucide-react";
 
 const NAV = [
-  { label: "Home", href: "#", Icon: Home },
+  { label: "Home", href: "/", Icon: Home },
   { label: "Products", href: "/products", Icon: Package },
-  { label: "Links", href: "#", Icon: Link2 },
-  { label: "Conversions", href: "#", Icon: ArrowLeftRight },
+  { label: "Links", href: "/links", Icon: Link2 },
+  { label: "Conversions", href: "/payouts", Icon: ArrowLeftRight },
   { label: "Payouts", href: "/payouts", Icon: Wallet },
   { label: "Analytics", href: "#", Icon: BarChart3 },
-  { label: "Settings", href: "#", Icon: Settings },
+  { label: "Settings", href: "/settings", Icon: Settings },
 ];
 
 export function Sidebar() {

@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { Bell, Search } from "lucide-react";
+import { useCreatorIdentity } from "@/lib/identity";
 
 export function Topbar({
   search,
@@ -13,6 +14,7 @@ export function Topbar({
   searchPlaceholder?: string;
 }) {
   const showSearch = search !== undefined && onSearchChange !== undefined;
+  const { creator } = useCreatorIdentity();
 
   return (
     <header className="flex h-[58px] shrink-0 items-center border-b border-line bg-bg">
@@ -47,8 +49,16 @@ export function Topbar({
           <Bell size={16} strokeWidth={1.6} />
         </button>
         <div className="flex h-full items-center gap-2 border-l border-line px-5">
-          <span className="h-2 w-2 shrink-0 rounded-full bg-accent" />
-          <span className="font-mono text-[12px] text-ink-2">0.0.6481207</span>
+          {creator ? (
+            <>
+              <span className="h-2 w-2 shrink-0 rounded-full bg-accent" />
+              <span className="font-mono text-[12px] text-ink-2">{creator.hedera_account_id}</span>
+            </>
+          ) : (
+            <Link href="/settings" className="link-underline text-[12px] font-medium text-ink-2">
+              Set up identity
+            </Link>
+          )}
         </div>
       </div>
     </header>
