@@ -1,26 +1,169 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+/* ============================================================
+   DESIGN TOKENS
+   Warm monochrome · Swiss editorial · technical architecture
+   ============================================================ */
+@theme {
+  /* Surfaces — never pure white */
+  --color-bg: #f4f3ef;
+  --color-bg-2: #eae9e5;
+  --color-surface: #f8f7f3;
+  --color-surface-2: #ecebe7;
+
+  /* Ink */
+  --color-ink: #111111;
+  --color-ink-2: #3a3a3a;
+  --color-muted: #6f6f6f;
+  --color-subtle: #8a8986;
+
+  /* Structure */
+  --color-line: #303030;
+  --color-line-soft: #b8b7b3;
+
+  /* Accent — used sparingly, never dominant */
+  --color-accent: #5b7fdb;
+  --color-accent-soft: #8daaf2;
+
+  /* Type */
+  --font-sans: var(--font-inter), "Inter", "Helvetica Neue", Helvetica, Arial,
+    sans-serif;
+  --font-mono: var(--font-mono-jb), ui-monospace, SFMono-Regular, "SF Mono",
+    Menlo, monospace;
+
+  /* Geometry — sharp by default */
+  --radius-sm: 2px;
+  --radius-md: 4px;
+  --radius-lg: 6px;
+
+  /* Motion */
+  --ease-expo: cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
+/* ============================================================
+   BASE
+   ============================================================ */
+@layer base {
+  * {
+    border-color: var(--color-line-soft);
+  }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+  html {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+
+  body {
+    background-color: var(--color-bg);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11", "ss03";
+    font-synthesis-weight: none;
+  }
+
+  /* Barely-there tactile grain over the whole page */
+  body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: 100;
+    pointer-events: none;
+    opacity: 0.03;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.82' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+
+  ::selection {
+    background: var(--color-ink);
+    color: var(--color-bg);
+  }
+
+  :focus-visible {
+    outline: 1px solid var(--color-accent);
+    outline-offset: 2px;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4 {
+    font-weight: 400;
+    letter-spacing: -0.04em;
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+/* ============================================================
+   UTILITIES
+   ============================================================ */
+@layer utilities {
+  /* Signature hatched separator */
+  .hatch {
+    background-image: repeating-linear-gradient(
+      -45deg,
+      transparent,
+      transparent 4px,
+      rgba(17, 17, 17, 0.42) 4px,
+      rgba(17, 17, 17, 0.42) 5px
+    );
+  }
+
+  .hatch-soft {
+    background-image: repeating-linear-gradient(
+      -45deg,
+      transparent,
+      transparent 5px,
+      rgba(17, 17, 17, 0.16) 5px,
+      rgba(17, 17, 17, 0.16) 6px
+    );
+  }
+
+  /* Small uppercase technical label */
+  .label {
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    color: var(--color-subtle);
+  }
+
+  .tnum {
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Editorial display heading */
+  .display {
+    font-weight: 400;
+    letter-spacing: -0.055em;
+    line-height: 0.98;
+  }
+
+  /* Animated underline for text links */
+  .link-underline {
+    position: relative;
+  }
+  .link-underline::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    bottom: -2px;
+    height: 1px;
+    width: 100%;
+    background: currentColor;
+    transform: scaleX(0);
+    transform-origin: right;
+    transition: transform 500ms var(--ease-expo);
+  }
+  .link-underline:hover::after {
+    transform: scaleX(1);
+    transform-origin: left;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
 }
