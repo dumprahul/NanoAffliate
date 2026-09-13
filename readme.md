@@ -36,6 +36,88 @@ A creator picks a product, mints a link. That link *is* a Hedera topic. A reader
 
 ---
 
+## Architecture
+
+```mermaid
+flowchart TB
+    Reader(["📱 Reader clicks<br/>a creator's link"])
+
+    subgraph Frontend["🖥️ Frontend — Next.js Dashboard"]
+        direction TB
+        Login["/login<br/>World ID Selfie Check"]
+        Guard["RequireCreatorLogin<br/>route guard"]
+        Products["/products"]
+        Links["/links"]
+        Payouts["/payouts"]
+        Analytics["/analytics"]
+        Settings["/settings<br/>seller onboarding · fund escrow"]
+        Wallet["HashPack / WalletConnect<br/>real wallet, signs its own txns"]
+    end
+
+    subgraph Backend["⚙️ Backend — Express API"]
+        direction TB
+        Redirect["Redirect Service<br/>GET /t/:topicId"]
+        AttnPage["Attention Page<br/>served + scored client-side"]
+        Signals["POST /report-signals"]
+        Agent["Agent<br/>x402 client · sole tx signer · AsyncMutex"]
+        OracleGate["Oracle<br/>x402 resource server"]
+        Scoring["scoreSession.ts<br/>pure scoring function"]
+        TickQueue["BullMQ Tick Queue<br/>+ scheduler cron"]
+        WorldRoutes["/world/*<br/>RP-signing · verify · login"]
+        DashAPI["Dashboard API<br/>sellers · products · links · payouts"]
+    end
+
+    subgraph Hedera["⛓️ Hedera Testnet"]
+        direction TB
+        LinkTopic[("Per-link HCS Topic<br/>click · tick · selfie_check_* · conversion")]
+        IdTopic[("Identity Registry Topic<br/>HCS-11 profiles")]
+        Escrow[["Seller Escrow Account"]]
+        Creator[["Creator Account"]]
+        OracleAcct[["Oracle Account"]]
+        AgentAcct[["Agent Account"]]
+    end
+
+    subgraph Data["🗄️ Data & Identity"]
+        direction TB
+        Supabase[("Supabase · Postgres<br/>sellers · products · links · sessions · ticks")]
+        Redis[("Redis<br/>BullMQ + diversity aggregate")]
+        WorldAPI["developer.world.org<br/>real Selfie Check verify"]
+    end
+
+    Reader --> Redirect
+    Redirect -- "creates session,<br/>submits click msg" --> LinkTopic
+    Redirect -- session row --> Supabase
+    Redirect --> AttnPage
+    AttnPage -- "every 5s" --> Signals
+    Signals --> TickQueue --> Agent
+    Agent -- "x402 micropayment,<br/>challenge → pay → unlock" --> OracleGate
+    OracleGate --> Scoring
+    Scoring -- diversity read --> Redis
+    Scoring -- trust bookkeeping --> Supabase
+    Scoring -- score + decision --> Agent
+    Agent -- "pay_full / pay_reduced" --> Escrow
+    Escrow -- "real TransferTransaction" --> Creator
+    Agent -- "tick / tick_rejected /<br/>selfie_check_triggered" --> LinkTopic
+    Agent -- "require_selfie_check" --> WorldRoutes
+    WorldRoutes <--> WorldAPI
+    WorldRoutes -- is_verified = true --> Supabase
+    Agent -.signs as.-> AgentAcct
+    OracleGate -.signs as.-> OracleAcct
+
+    Login --> WorldRoutes
+    Login -- nullifier lookup / link --> Supabase
+    Guard --> Products & Links & Payouts & Analytics
+    Products & Links & Payouts & Analytics & Settings --> DashAPI --> Supabase
+    Wallet -- "real signed transfer,<br/>no backend key" --> Escrow
+    Wallet -- account id --> Login
+    Settings --> Wallet
+    Login -.published to.-> IdTopic
+```
+
+Every arrow above is a real call this codebase makes — no dotted "future work" boxes, no simulated services. The Agent is the one signer behind both `AgentAcct` and every write into `LinkTopic`; the Oracle only ever signs as `OracleAcct`, and only to accept its own x402 payment.
+
+---
+
 ## How a link becomes a topic
 
 Minting a link isn't a database write with a marketing label — it's a real `TopicCreateTransaction`, followed by a `link_created` manifest submitted as that topic's first message. The returned topic ID *is* the shareable URL.
@@ -56,7 +138,16 @@ Every 5 seconds the attention page is open and visible, it posts real behavioral
 
 <p align="center"><img src="docs/assets/oracle-checks.gif" alt="Attention Trust Oracle — six weighted checks feeding into one trust score" width="720" /></p>
 
-The score is a weighted sum — tab focus, interaction recency, scroll/mouse-movement naturalness, device fingerprint, plugin count, and **session diversity** (how many genuinely distinct IP/fingerprint pairs have hit *this link* recently, tracked in Redis — a coordinated bot farm on a narrow IP range scores low here even if each bot's own behavior looks clean). One hard gate sits in front of all of it: `navigator.webdriver === true` is an instant reject, no other signal buys it back.
+**What it actually does, end to end, on every single tick:**
+
+1. **Collect** — the attention page's client JS samples tab focus, scroll/mouse curves, a canvas fingerprint, and automation tells (`navigator.webdriver`, plugin count).
+2. **Gate** — the Agent pays the Oracle a real x402 micropayment; the scoring endpoint is unreachable without it.
+3. **Score** — a pure function (`scoreSession.ts`, no I/O) turns those signals plus a Redis-backed diversity read into one number in `[0, 1]`.
+4. **Decide** — thresholds turn that number into `pay_full` / `pay_reduced` / `require_selfie_check` / `reject`.
+5. **Act** — the Agent either signs a real `TransferTransaction` to the creator, queues a retry (insufficient escrow), or does neither — and writes exactly what happened to that link's HCS topic (`tick`, `tick_rejected`, or `selfie_check_triggered`).
+6. **Persist** — the session's cumulative trust score and borderline streak update in Supabase, shaping every subsequent tick's outcome.
+
+The score itself is a weighted sum — tab focus, interaction recency, scroll/mouse-movement naturalness, device fingerprint, plugin count, and **session diversity** (how many genuinely distinct IP/fingerprint pairs have hit *this link* recently, tracked in Redis — a coordinated bot farm on a narrow IP range scores low here even if each bot's own behavior looks clean). One hard gate sits in front of all of it: `navigator.webdriver === true` is an instant reject, no other signal buys it back.
 
 | Score | Outcome |
 |---|---|
