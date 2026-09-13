@@ -11,6 +11,7 @@ import { WalletConnectButton } from "@/components/ui/WalletConnectButton";
 import { WaveCanvas } from "@/components/WaveCanvas";
 import { useCreatorIdentity } from "@/lib/identity";
 import { ApiError, createCreator, worldLoginSignature, worldLoginVerify } from "@/lib/api";
+import Image from "next/image";
 
 const EASE = [0.16, 1, 0.3, 1] as const;
 
@@ -130,16 +131,9 @@ function LoginPageContent() {
       {/* Left — the actual login: World ID Selfie Check */}
       <div className="flex w-full flex-col justify-center px-8 py-10 sm:px-14 lg:w-1/2 lg:px-20">
         <div className="mx-auto w-full max-w-sm">
-          <div className="flex items-baseline justify-between">
-            <span className="text-[17px] font-medium tracking-[-0.03em] text-ink">NanoAffiliate</span>
-            <span className="label">Build for creators</span>
-          </div>
+          <Image src="/brand/nanoaffiliate-logo.png" alt="NanoAffiliate" width={360} height={120} className="h-16 w-auto" priority />
 
-          <div className="mt-14">
-            <div className="mb-4 flex items-center gap-3">
-              <span className="h-px w-8 bg-line" />
-              <span className="label">Simple tools. Real earnings.</span>
-            </div>
+          <div className="mt-16">
             <h1 className="display text-[42px] sm:text-[46px]">
               Log in to
               <br />

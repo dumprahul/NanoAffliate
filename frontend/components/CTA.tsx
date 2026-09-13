@@ -26,7 +26,7 @@ export function CTA() {
         </Reveal>
         <Reveal delay={0.18}>
           <div className="mt-8 flex flex-wrap items-center gap-3">
-            <PrimaryButton href="#start">
+            <PrimaryButton href="/login">
               Get Started
               <ArrowRight
                 size={15}
@@ -34,7 +34,7 @@ export function CTA() {
                 className="transition-transform duration-[550ms] ease-[var(--ease-expo)] group-hover:translate-x-0.5"
               />
             </PrimaryButton>
-            <SecondaryButton href="#docs">Book a demo</SecondaryButton>
+            <SecondaryButton href="#ledger">See how it settles</SecondaryButton>
           </div>
         </Reveal>
       </div>
