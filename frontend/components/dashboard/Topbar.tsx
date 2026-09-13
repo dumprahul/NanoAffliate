@@ -55,8 +55,8 @@ export function Topbar({
               <span className="font-mono text-[12px] text-ink-2">{creator.hedera_account_id}</span>
             </>
           ) : (
-            <Link href="/settings" className="link-underline text-[12px] font-medium text-ink-2">
-              Set up identity
+            <Link href="/login" className="link-underline text-[12px] font-medium text-ink-2">
+              Log in
             </Link>
           )}
         </div>
