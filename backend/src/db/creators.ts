@@ -16,3 +16,9 @@ export async function getCreatorById(id: string): Promise<Creator | null> {
   if (error) throw error;
   return data as Creator | null;
 }
+
+export async function listCreators(): Promise<Creator[]> {
+  const { data, error } = await supabase.from('creators').select().order('cold_start_started_at', { ascending: false });
+  if (error) throw error;
+  return (data ?? []) as Creator[];
+}

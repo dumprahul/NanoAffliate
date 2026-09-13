@@ -16,6 +16,7 @@ import { signalsRouter } from './routes/signals.js';
 import { sessionLifecycleRouter } from './routes/sessionLifecycle.js';
 import { conversionsRouter } from './routes/conversions.js';
 import { webhooksRouter } from './routes/webhooks.js';
+import { dashboardRouter } from './routes/dashboard.js';
 
 export function createApp() {
   const app = express();
@@ -42,6 +43,7 @@ export function createApp() {
   app.use(sessionLifecycleRouter);
   app.use(conversionsRouter);
   app.use(webhooksRouter);
+  app.use(dashboardRouter);
 
   app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
     if (err && typeof err === 'object' && 'issues' in err) {

@@ -1,5 +1,5 @@
 import { supabase } from '../lib/supabase.js';
-import type { Link } from '../types/index.js';
+import type { Link, Product } from '../types/index.js';
 
 export async function createLink(input: {
   creatorId: string;
@@ -37,4 +37,17 @@ export async function getLinkById(id: string): Promise<Link | null> {
   const { data, error } = await supabase.from('links').select().eq('id', id).maybeSingle();
   if (error) throw error;
   return data as Link | null;
+}
+
+export type LinkWithProduct = Link & { product: Product };
+
+/** Links page — a creator's own links, joined with the product each one points to. */
+export async function listLinksByCreator(creatorId: string): Promise<LinkWithProduct[]> {
+  const { data, error } = await supabase
+    .from('links')
+    .select('*, product:products(*)')
+    .eq('creator_id', creatorId)
+    .order('created_at', { ascending: false });
+  if (error) throw error;
+  return (data ?? []) as unknown as LinkWithProduct[];
 }
