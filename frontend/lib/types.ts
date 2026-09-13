@@ -19,6 +19,8 @@ export interface Product {
   image_url: string | null;
   price_display: string | null;
   affiliate_tag: string;
+  escrow_budget_hbar: number | null;
+  escrow_spent_hbar: number;
   created_at: string;
 }
 
@@ -32,6 +34,23 @@ export interface Creator {
   hedera_account_id: string;
   uaid: string | null;
   trust_penalty_multiplier: number;
+}
+
+export interface Link {
+  id: string;
+  creator_id: string;
+  product_id: string;
+  slug: string;
+  hcs_topic_id: string;
+  rate_unverified_per_tick: number;
+  rate_verified_per_tick: number;
+  rate_purchase_bonus: number;
+  bundle_id: string | null;
+  created_at: string;
+}
+
+export interface LinkWithProduct extends Link {
+  product: Product;
 }
 
 export type RateTier = 'unverified' | 'verified';
