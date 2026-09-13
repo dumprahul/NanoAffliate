@@ -1,15 +1,17 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { useState } from "react";
 import { Menu, X } from "lucide-react";
 
+// Anchors point at real sections on this page (see the matching `id` on each
+// component) — Pricing/Docs were dropped rather than left pointing at
+// nothing, since there's no pricing page or public docs site to send anyone to.
 const LINKS = [
   { label: "Product", href: "#product" },
   { label: "How it works", href: "#how" },
   { label: "Developers", href: "#ledger" },
-  { label: "Pricing", href: "#pricing" },
-  { label: "Docs", href: "#docs" },
 ];
 
 export function Navigation() {
@@ -21,9 +23,9 @@ export function Navigation() {
         {/* Wordmark */}
         <Link
           href="/"
-          className="flex shrink-0 items-center border-r border-line px-5 sm:px-7 text-[15px] font-medium tracking-[-0.035em] text-ink"
+          className="flex shrink-0 items-center border-r border-line px-5 sm:px-7"
         >
-          NanoAffiliate
+          <Image src="/brand/nanoaffiliate-logo.png" alt="NanoAffiliate" width={306} height={102} className="h-12 w-auto" priority />
         </Link>
 
         {/* Desktop links */}
@@ -43,13 +45,13 @@ export function Navigation() {
 
         {/* Right cluster */}
         <Link
-          href="#signin"
+          href="/login"
           className="hidden shrink-0 items-center border-l border-line px-7 text-[13px] font-medium tracking-[-0.01em] text-ink-2 transition-colors duration-300 hover:text-ink sm:flex"
         >
           Sign in
         </Link>
         <Link
-          href="#start"
+          href="/login"
           className="hidden shrink-0 items-center border-l border-line bg-ink px-7 text-[13px] font-medium tracking-[-0.01em] text-bg transition-colors duration-[450ms] ease-[var(--ease-expo)] hover:bg-ink-2 sm:flex"
         >
           Get Started
@@ -82,14 +84,14 @@ export function Navigation() {
           ))}
           <div className="grid grid-cols-2">
             <Link
-              href="#signin"
+              href="/login"
               onClick={() => setOpen(false)}
               className="border-r border-line px-5 py-3.5 text-center text-[13px] font-medium text-ink-2"
             >
               Sign in
             </Link>
             <Link
-              href="#start"
+              href="/login"
               onClick={() => setOpen(false)}
               className="bg-ink px-5 py-3.5 text-center text-[13px] font-medium text-bg"
             >

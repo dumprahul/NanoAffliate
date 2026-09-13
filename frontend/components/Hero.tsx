@@ -44,7 +44,7 @@ export function Hero() {
 
           <Reveal onMount delay={0.24}>
             <div className="mt-10 flex flex-wrap items-center gap-3">
-              <PrimaryButton href="#start">
+              <PrimaryButton href="/login">
                 Get Started
                 <ArrowRight
                   size={15}
@@ -52,7 +52,7 @@ export function Hero() {
                   className="transition-transform duration-[550ms] ease-[var(--ease-expo)] group-hover:translate-x-0.5"
                 />
               </PrimaryButton>
-              <SecondaryButton href="#docs">Read the docs</SecondaryButton>
+              <SecondaryButton href="#ledger">Read the docs</SecondaryButton>
             </div>
           </Reveal>
         </div>
