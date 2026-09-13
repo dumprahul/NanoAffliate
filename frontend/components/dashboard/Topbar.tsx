@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { Bell, Search } from "lucide-react";
 import { useCreatorIdentity } from "@/lib/identity";
 
@@ -20,9 +21,9 @@ export function Topbar({
     <header className="flex h-[58px] shrink-0 items-center border-b border-line bg-bg">
       <Link
         href="/"
-        className="flex h-full shrink-0 items-center border-r border-line px-6 text-[15px] font-medium tracking-[-0.035em] text-ink lg:w-[220px]"
+        className="flex h-full shrink-0 items-center border-r border-line px-6 lg:w-[220px]"
       >
-        NanoAffiliate
+        <Image src="/brand/nanoaffiliate-logo.png" alt="NanoAffiliate" width={198} height={66} className="h-8 w-auto" priority />
       </Link>
 
       <div className="flex flex-1 items-center gap-2 px-5">
