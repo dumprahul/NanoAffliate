@@ -44,8 +44,19 @@ export const env = {
   redisUrl: optional('REDIS_URL') ?? 'redis://localhost:6379',
 
   worldId: {
-    appId: optional('WORLD_ID_APP_ID'),
-    actionId: optional('WORLD_ID_ACTION_ID'),
+    get appId() {
+      return required('WORLD_ID_APP_ID');
+    },
+    get rpId() {
+      return required('WORLD_ID_RP_ID');
+    },
+    get signerKey() {
+      return required('WORLD_ID_SIGNER_KEY');
+    },
+    /** Lets routes/world.ts fail fast with one clear error instead of three separate ones. */
+    get configured() {
+      return Boolean(optional('WORLD_ID_APP_ID') && optional('WORLD_ID_RP_ID') && optional('WORLD_ID_SIGNER_KEY'));
+    },
   },
 };
 
