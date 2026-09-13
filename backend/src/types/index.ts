@@ -32,6 +32,7 @@ export interface Creator {
   id: string;
   hedera_account_id: string;
   uaid: string | null;
+  world_nullifier: string | null;
   cold_start_started_at: string;
   cumulative_attention_events: number;
   trust_penalty_multiplier: number;
