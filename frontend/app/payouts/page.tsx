@@ -11,13 +11,16 @@ import { ApiError, listPayouts } from "@/lib/api";
 import { exportPayoutsCsv } from "@/lib/exportCsv";
 import type { PayoutEvent, PayoutKind, PayoutStatus } from "@/lib/types";
 import { ClientOnly } from "@/components/ui/ClientOnly";
+import { RequireCreatorLogin } from "@/components/ui/RequireCreatorLogin";
 
 const RANGE_DAYS: Record<RangeKey, number> = { "7D": 7, "30D": 30, "90D": 90, "1Y": 365 };
 
 export default function PayoutsPage() {
   return (
     <ClientOnly>
-      <PayoutsPageContent />
+      <RequireCreatorLogin>
+        <PayoutsPageContent />
+      </RequireCreatorLogin>
     </ClientOnly>
   );
 }
