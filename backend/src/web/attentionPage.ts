@@ -235,6 +235,125 @@ export function renderAttentionPage(params: {
     line-height: 1.6;
     color: var(--subtle);
   }
+
+  .verify-row { margin-top: 14px; }
+  .verify-link {
+    background: none;
+    border: none;
+    padding: 0;
+    color: var(--accent);
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+  .verify-link:hover { color: var(--ink); }
+  .verify-link.urgent {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--warn-bg);
+    color: var(--warn);
+    border: 1px solid var(--warn);
+    padding: 8px 14px;
+    border-radius: 2px;
+    text-decoration: none;
+    font-size: 12.5px;
+  }
+  .verify-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    margin-top: 10px;
+    font-size: 11.5px;
+    color: var(--good);
+    font-weight: 500;
+  }
+
+  .modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(17, 17, 17, 0.4);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    z-index: 50;
+  }
+  .modal-card {
+    width: 100%;
+    max-width: 340px;
+    background: var(--bg);
+    border: 1px solid var(--line);
+    padding: 24px;
+  }
+  .modal-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+  }
+  .modal-card .close-x {
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: var(--subtle);
+    font-size: 16px;
+    line-height: 1;
+    padding: 0;
+    flex-shrink: 0;
+  }
+  .modal-title { font-size: 14px; font-weight: 600; letter-spacing: -0.02em; margin: 0 0 4px; }
+  .modal-sub { font-size: 12px; color: var(--muted); margin: 0 0 18px; line-height: 1.5; }
+  .modal-phase { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 12px; }
+  .spinner-ring {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    border: 1px solid var(--line-soft);
+    position: relative;
+  }
+  .spinner-ring::after {
+    content: "";
+    position: absolute;
+    inset: -1px;
+    border-radius: 50%;
+    border: 1px solid var(--accent);
+    opacity: 0.4;
+    animation: ping 1.6s cubic-bezier(0,0,0.2,1) infinite;
+  }
+  .modal-qr { border: 1px solid var(--line-soft); padding: 8px; background: #fff; }
+  .modal-qr img { display: block; width: 200px; height: 200px; }
+  .modal-open-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12.5px;
+    color: var(--ink);
+    text-decoration: none;
+    border-bottom: 1px solid var(--line-soft);
+    padding-bottom: 2px;
+  }
+  .modal-result-ok {
+    width: 44px; height: 44px; border-radius: 50%;
+    border: 1px solid var(--line); display: flex; align-items: center; justify-content: center;
+    color: var(--good); font-size: 20px;
+  }
+  .modal-result-bad {
+    width: 44px; height: 44px; border-radius: 50%;
+    background: var(--bad-bg); display: flex; align-items: center; justify-content: center;
+    color: var(--bad); font-size: 18px;
+  }
+  .modal-card button.secondary {
+    background: transparent;
+    color: var(--ink);
+    border: 1px solid var(--line-soft);
+    width: 100%;
+  }
+  .modal-card button.secondary:hover { background: var(--surface-2); }
+  .modal-card button.primary { width: 100%; }
+  [hidden] { display: none !important; }
 </style>
 </head>
 <body>
@@ -263,6 +382,13 @@ export function renderAttentionPage(params: {
       <span id="status">Tracking genuine attention…</span>
     </div>
 
+    <div class="verify-row" id="verify-row">
+      <button type="button" class="verify-link" id="verify-trigger">
+        Verify with World ID — earn the full rate
+      </button>
+    </div>
+    <div class="verify-badge" id="verify-badge" hidden>✓ Verified — earning full rate</div>
+
     <div id="order-form">
       <p>Bought it? Confirm your order so the creator gets their bonus.</p>
       <div class="order-row">
@@ -277,6 +403,21 @@ export function renderAttentionPage(params: {
       network in the middle.
     </footer>
   </main>
+
+  <div class="modal-overlay" id="selfie-modal" hidden>
+    <div class="modal-card">
+      <div class="modal-head">
+        <div>
+          <p class="modal-title">Selfie Check</p>
+          <p class="modal-sub" id="modal-sub">
+            A real biometric liveness check via World App — no Orb required.
+          </p>
+        </div>
+        <button type="button" class="close-x" id="modal-close" aria-label="Close">✕</button>
+      </div>
+      <div id="modal-body"></div>
+    </div>
+  </div>
 
 <script>
 (function () {
@@ -344,12 +485,167 @@ export function renderAttentionPage(params: {
     var label = {
       pay_full: 'Verified — full rate',
       pay_reduced: 'Verified — reduced rate',
-      require_selfie_check: 'Borderline — Selfie Check suggested',
+      require_selfie_check: 'Borderline — Selfie Check required',
       reject: 'Not scoring as attention',
     }[decision] || 'Tracking genuine attention…';
     var scoreText = score !== undefined ? ' · trust ' + score.toFixed(2) : '';
     statusEl.innerHTML = '<span class="pill ' + (decision || 'pending') + '">' + label + '</span>' + scoreText;
+
+    if (decision === 'require_selfie_check') onSelfieCheckRequired();
   }
+
+  // ---------------------------------------------------------------------
+  // World ID Selfie Check — architecture §11 escalation, now built.
+  // Available voluntarily at any time (the button under the status row),
+  // and auto-prompted the first time the Oracle actually requires it
+  // (scoreSession.ts, after 6 consecutive borderline ticks). Passing
+  // unlocks rate_verified_per_tick for the rest of this session.
+  // ---------------------------------------------------------------------
+  var verified = false;
+  var autoPrompted = false;
+  var verifyTrigger = document.getElementById('verify-trigger');
+  var verifyRow = document.getElementById('verify-row');
+  var verifyBadge = document.getElementById('verify-badge');
+  var modal = document.getElementById('selfie-modal');
+  var modalBody = document.getElementById('modal-body');
+  var modalClose = document.getElementById('modal-close');
+  var pollController = null;
+  var attempt = 0;
+
+  function onSelfieCheckRequired() {
+    if (verified) return;
+    verifyTrigger.textContent = 'Verify with World ID to keep earning — required';
+    verifyTrigger.classList.add('urgent');
+    if (!autoPrompted) {
+      autoPrompted = true;
+      openSelfieModal();
+    }
+  }
+
+  function openSelfieModal() {
+    modal.hidden = false;
+    startSelfieCheck();
+  }
+
+  function closeSelfieModal() {
+    attempt++; // supersedes any in-flight pollUntilCompletion continuation
+    if (pollController) pollController.abort();
+    modal.hidden = true;
+  }
+
+  function renderModalPhase(html) {
+    modalBody.innerHTML = html;
+  }
+
+  function startSelfieCheck() {
+    var thisAttempt = ++attempt;
+    renderModalPhase(
+      '<div class="modal-phase"><div class="spinner-ring"></div>' +
+        '<p style="font-size:12.5px;color:var(--ink-2)">Requesting a signed request…</p></div>',
+    );
+
+    fetch('/world/rp-signature', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ session_id: SESSION_ID }),
+    })
+      .then(function (r) {
+        return r.json().then(function (body) {
+          if (!r.ok) throw new Error(body.error || 'Could not get a signed request.');
+          return body;
+        });
+      })
+      .then(function (sig) {
+        if (thisAttempt !== attempt) return;
+        // Loaded on demand from a CDN, not bundled — this page has no build
+        // step. Confirmed working (no WASM-serving issues) against esm.sh.
+        return import('https://esm.sh/@worldcoin/idkit-core@4.2.4').then(function (mod) {
+          if (thisAttempt !== attempt) return;
+          return mod.IDKit.requestWithInviteCode({
+            app_id: sig.app_id,
+            action: sig.action,
+            allow_legacy_proofs: true,
+            environment: 'production',
+            rp_context: {
+              rp_id: sig.rp_id,
+              nonce: sig.nonce,
+              created_at: sig.created_at,
+              expires_at: sig.expires_at,
+              signature: sig.signature,
+            },
+          }).preset(mod.selfieCheckLegacy({ signal: crypto.randomUUID() }));
+        });
+      })
+      .then(function (request) {
+        if (!request || thisAttempt !== attempt) return;
+
+        var qrSrc = 'https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=' + encodeURIComponent(request.connectorURI);
+        renderModalPhase(
+          '<div class="modal-phase">' +
+            '<div class="modal-qr"><img src="' + qrSrc + '" alt="World App QR code" /></div>' +
+            '<p style="font-size:12px;color:var(--ink-2)">Scan with World App, or open directly:</p>' +
+            '<a class="modal-open-link" href="' + request.connectorURI + '" target="_blank" rel="noopener">Open in World App ↗</a>' +
+            '<button type="button" class="secondary" id="modal-cancel">Cancel</button>' +
+            '</div>',
+        );
+        document.getElementById('modal-cancel').addEventListener('click', closeSelfieModal);
+
+        pollController = new AbortController();
+        return request.pollUntilCompletion({ signal: pollController.signal });
+      })
+      .then(function (completion) {
+        if (!completion || thisAttempt !== attempt) return;
+
+        if (!completion.success) {
+          renderModalPhase(
+            '<div class="modal-phase"><div class="modal-result-bad">✕</div>' +
+              '<p style="font-size:13px">World App reported: ' + completion.error + '</p>' +
+              '<button type="button" class="primary" id="modal-retry">Try again</button></div>',
+          );
+          document.getElementById('modal-retry').addEventListener('click', startSelfieCheck);
+          return;
+        }
+
+        renderModalPhase(
+          '<div class="modal-phase"><div class="spinner-ring"></div>' +
+            '<p style="font-size:12.5px;color:var(--ink-2)">Proof received — verifying with World…</p></div>',
+        );
+
+        return fetch('/world/verify', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ session_id: SESSION_ID, idkitResponse: completion.result }),
+        }).then(function (r) {
+          return r.json().then(function (body) {
+            if (thisAttempt !== attempt) return;
+            if (!r.ok || !body.verified) throw new Error(body.error || 'World rejected the proof.');
+
+            verified = true;
+            verifyRow.hidden = true;
+            verifyBadge.hidden = false;
+            renderModalPhase(
+              '<div class="modal-phase"><div class="modal-result-ok">✓</div>' +
+                '<p style="font-size:13px">Selfie Check passed — earning the full rate now.</p>' +
+                '<button type="button" class="primary" id="modal-done">Done</button></div>',
+            );
+            document.getElementById('modal-done').addEventListener('click', closeSelfieModal);
+          });
+        });
+      })
+      .catch(function (err) {
+        if (thisAttempt !== attempt) return;
+        renderModalPhase(
+          '<div class="modal-phase"><div class="modal-result-bad">✕</div>' +
+            '<p style="font-size:13px">' + (err && err.message ? err.message : 'Something went wrong.') + '</p>' +
+            '<button type="button" class="primary" id="modal-retry">Try again</button></div>',
+        );
+        var retryBtn = document.getElementById('modal-retry');
+        if (retryBtn) retryBtn.addEventListener('click', startSelfieCheck);
+      });
+  }
+
+  verifyTrigger.addEventListener('click', openSelfieModal);
+  modalClose.addEventListener('click', closeSelfieModal);
 
   function sendSignals() {
     if (document.visibilityState !== 'visible') return;

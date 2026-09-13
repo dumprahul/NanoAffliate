@@ -102,6 +102,23 @@ export async function updateSessionAfterTick(
   if (error) throw error;
 }
 
+/**
+ * Selfie Check passed — unlocks rate_verified_per_tick for the remainder of
+ * this session. Also resets borderline_tick_count: scoreSession.ts's
+ * `borderlineTickCount > 6` check runs before any score threshold and never
+ * resets itself except on a `pay_full` outcome — which is unreachable once
+ * that branch is hit, since it always short-circuits first. Without this
+ * reset, a session that triggered `require_selfie_check` would stay stuck
+ * returning that same decision forever, even after verifying.
+ */
+export async function setSessionVerified(id: string, verifiedUntil: string): Promise<void> {
+  const { error } = await supabase
+    .from('sessions')
+    .update({ is_verified: true, verified_until: verifiedUntil, borderline_tick_count: 0 })
+    .eq('id', id);
+  if (error) throw error;
+}
+
 export async function setSessionStatus(
   id: string,
   status: SessionStatus,

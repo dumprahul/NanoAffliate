@@ -21,6 +21,7 @@
   "dependencies": {
     "@hiero-ledger/sdk": "2.85.0",
     "@supabase/supabase-js": "^2.45.4",
+    "@worldcoin/idkit-core": "^4.2.4",
     "@x402/core": "^2.25.0",
     "@x402/express": "^2.25.0",
     "@x402/hedera": "^2.25.0",
