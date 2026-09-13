@@ -29,3 +29,13 @@ export async function updateEscrowBalanceCached(id: string, balance: number): Pr
   const { error } = await supabase.from('sellers').update({ escrow_balance_cached: balance }).eq('id', id);
   if (error) throw error;
 }
+
+/** Public listing — omits webhook_secret, which is only ever returned once, at seller creation. */
+export async function listSellers(): Promise<Omit<Seller, 'webhook_secret'>[]> {
+  const { data, error } = await supabase
+    .from('sellers')
+    .select('id, hedera_account_id, escrow_hedera_account_id, escrow_balance_cached, created_at')
+    .order('created_at', { ascending: false });
+  if (error) throw error;
+  return (data ?? []) as Omit<Seller, 'webhook_secret'>[];
+}

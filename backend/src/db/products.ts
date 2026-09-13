@@ -1,5 +1,5 @@
 import { supabase } from '../lib/supabase.js';
-import type { Product } from '../types/index.js';
+import type { Product, Seller } from '../types/index.js';
 
 export async function createProduct(input: {
   sellerId: string;
@@ -31,6 +31,24 @@ export async function getProductById(id: string): Promise<Product | null> {
   const { data, error } = await supabase.from('products').select().eq('id', id).maybeSingle();
   if (error) throw error;
   return data as Product | null;
+}
+
+export type ProductWithSeller = Product & { seller: Omit<Seller, 'webhook_secret'> };
+
+/**
+ * Full marketplace listing for the dashboard's Products page — every product,
+ * joined with its seller. Explicit seller column list (rather than `*`)
+ * deliberately excludes webhook_secret — this is a public listing endpoint,
+ * and that secret is only ever meant to be seen once, by its own seller, at
+ * creation (it signs /webhooks/purchase-confirmed requests).
+ */
+export async function listProductsWithSellers(): Promise<ProductWithSeller[]> {
+  const { data, error } = await supabase
+    .from('products')
+    .select('*, seller:sellers(id, hedera_account_id, escrow_hedera_account_id, escrow_balance_cached, created_at)')
+    .order('created_at', { ascending: false });
+  if (error) throw error;
+  return (data ?? []) as unknown as ProductWithSeller[];
 }
 
 /**
