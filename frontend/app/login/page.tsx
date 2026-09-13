@@ -86,7 +86,6 @@ function LoginPageContent() {
       if (verifyBody.creator) {
         setCreator({ id: verifyBody.creator.id, hedera_account_id: verifyBody.creator.hedera_account_id });
         setStatus("done");
-        setTimeout(() => router.replace("/products"), 700);
       } else {
         // First time this person has verified — no creator row yet, need a payout wallet to create one.
         setWalletAccountId(null);
@@ -107,7 +106,6 @@ function LoginPageContent() {
       const creator = await createCreator({ hedera_account_id: hederaAccountId, world_nullifier: nullifier });
       setCreator({ id: creator.id, hedera_account_id: creator.hedera_account_id });
       setStatus("done");
-      setTimeout(() => router.replace("/products"), 700);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Could not finish creating your account.");
       setStatus("error");
@@ -249,11 +247,19 @@ function LoginPageContent() {
 
               {status === "done" && (
                 <Phase key="done">
-                  <div className="flex flex-col items-center gap-3 py-6 text-center">
+                  <div className="flex flex-col items-center gap-4 py-6 text-center">
                     <div className="flex h-12 w-12 items-center justify-center rounded-full border border-line bg-bg">
                       <Check size={20} strokeWidth={1.75} className="text-accent" />
                     </div>
-                    <p className="text-[13px] text-ink">Logged in — taking you to your dashboard…</p>
+                    <p className="text-[13px] text-ink">Selfie Check passed — you&apos;re logged in.</p>
+                    <button
+                      type="button"
+                      onClick={() => router.replace("/products")}
+                      className="flex w-full items-center justify-between gap-3 bg-ink px-5 py-3.5 text-[13.5px] font-medium text-bg transition-colors hover:bg-ink-2"
+                    >
+                      Go to Products
+                      <ArrowRight size={15} strokeWidth={1.75} />
+                    </button>
                   </div>
                 </Phase>
               )}
