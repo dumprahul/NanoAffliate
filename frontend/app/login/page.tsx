@@ -85,7 +85,7 @@ function LoginPageContent() {
       if (verifyBody.creator) {
         setCreator({ id: verifyBody.creator.id, hedera_account_id: verifyBody.creator.hedera_account_id });
         setStatus("done");
-        setTimeout(() => router.push("/products"), 700);
+        setTimeout(() => router.replace("/products"), 700);
       } else {
         // First time this person has verified — no creator row yet, need a payout wallet to create one.
         setStatus("need-wallet");
@@ -105,7 +105,7 @@ function LoginPageContent() {
       const creator = await createCreator({ hedera_account_id: hederaAccountId, world_nullifier: nullifier });
       setCreator({ id: creator.id, hedera_account_id: creator.hedera_account_id });
       setStatus("done");
-      setTimeout(() => router.push("/products"), 700);
+      setTimeout(() => router.replace("/products"), 700);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Could not finish creating your account.");
       setStatus("error");
